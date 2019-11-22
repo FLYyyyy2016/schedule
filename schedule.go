@@ -3,7 +3,7 @@ package schedule
 import (
 	"crypto/md5"
 	"encoding/hex"
-	log "github.com/sirupsen/logrus"
+	"log"
 	"sync"
 	"time"
 )
@@ -85,6 +85,17 @@ func (sche *Schedule) Every(duration time.Duration) Task {
 	return &newJob
 }
 
+func (sche *Schedule) Query(jobId string) (JobStats, error) {
+	sche.Lock()
+	if task, ok := sche.tasks[jobId]; ok {
+		sche.Unlock()
+		return task.GetJobStats(), nil
+	} else {
+		sche.Unlock()
+		return JobStats{}, jobNotExistError{}
+	}
+}
+
 func (sche *Schedule) Cancel(jobId string) error {
 	sche.Lock()
 	if task, ok := sche.tasks[jobId]; ok {
@@ -100,17 +111,15 @@ type Task interface {
 	Do(func()) string
 	GetId() string
 	Cancel() error
+	GetJobStats() JobStats
 }
 
 type DelayJob struct {
 	Job
-
-	finish chan struct{}
 }
 
 type EveryJob struct {
 	Job
-	finish chan int
 }
 
 type Job struct {
@@ -119,20 +128,28 @@ type Job struct {
 	status   jobStatus
 	work     func()
 	close    chan struct{}
-	jobStats JobStats
 	duration time.Duration
+	finish   int
 }
 
 func (job *Job) setStatus(status jobStatus) {
 	job.Lock()
 	defer job.Unlock()
 	job.status = status
-	job.jobStats.jobStatus = status
 }
 func (job *Job) getStatus() jobStatus {
 	job.Lock()
 	defer job.Unlock()
 	return job.status
+}
+
+func (job *Job) GetJobStats() JobStats {
+	job.Lock()
+	defer job.Unlock()
+	return JobStats{
+		jobStatus:    job.status,
+		finishedTime: job.finish,
+	}
 }
 
 func (job *DelayJob) Cancel() error {
@@ -201,7 +218,7 @@ func (job *DelayJob) Do(f func()) string {
 func (job *Job) finishOneTime() {
 	job.Lock()
 	defer job.Unlock()
-	job.jobStats.finishedTime++
+	job.finish++
 }
 
 func (job *EveryJob) Do(f func()) string {
@@ -215,6 +232,7 @@ func (job *EveryJob) Do(f func()) string {
 					go func() {
 						job.setStatus(jobRunning)
 						f()
+						job.finishOneTime()
 						if job.getStatus() == jobRunning {
 							job.setStatus(jobPrepare)
 						}
