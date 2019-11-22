@@ -137,15 +137,16 @@ func (job *Job) getStatus() jobStatus {
 
 func (job *DelayJob) Cancel() error {
 	status := job.getStatus()
-	if status == jobPrepare {
+	switch status {
+	case jobPrepare:
 		job.close <- struct{}{}
-	} else if status == jobRunning {
+	case jobRunning:
 		return jobIsRunningError{}
-	} else if status == jobCancel {
+	case jobCancel:
 		return jobIsCancelError{}
-	} else if status == jobCreating {
+	case jobCreating:
 		return jobIsCreatingError{}
-	} else if status == jobFinish {
+	case jobFinish:
 		return jobIsFinishError{}
 	}
 	return nil
@@ -153,15 +154,16 @@ func (job *DelayJob) Cancel() error {
 
 func (job *EveryJob) Cancel() error {
 	status := job.getStatus()
-	if status == jobPrepare {
+	switch status {
+	case jobPrepare:
 		job.close <- struct{}{}
-	} else if status == jobRunning {
+	case jobRunning:
 		job.close <- struct{}{}
-	} else if status == jobCancel {
+	case jobCancel:
 		return jobIsCancelError{}
-	} else if status == jobCreating {
+	case jobCreating:
 		return jobIsCreatingError{}
-	} else if status == jobFinish {
+	case jobFinish:
 		return jobIsFinishError{}
 	}
 	return nil
