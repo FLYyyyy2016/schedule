@@ -2,6 +2,7 @@ package schedule
 
 import (
 	"github.com/go-playground/assert/v2"
+	"log"
 	"sync"
 	"testing"
 	"time"
@@ -46,6 +47,40 @@ func TestSchedule_Every(t *testing.T) {
 	assert.Equal(t, i, 45)
 }
 
+func TestDelayJob_CancelDoing(t *testing.T) {
+	sche := NewSchedule()
+	lock := sync.Mutex{}
+	i := 0
+	f := func() {
+		lock.Lock()
+		defer lock.Unlock()
+		time.Sleep(5 * time.Millisecond)
+		i = i + 1
+	}
+	job := sche.Delay(100 * time.Millisecond).Do(f)
+	time.Sleep(102 * time.Millisecond)
+	err := sche.Cancel(job)
+	assert.NotEqual(t, err, nil)
+}
+
+func TestEveryJob_CancelDoing(t *testing.T) {
+	sche := NewSchedule()
+	lock := sync.Mutex{}
+	i := 0
+	f := func() {
+		lock.Lock()
+		defer lock.Unlock()
+		time.Sleep(5 * time.Millisecond)
+		i = i + 1
+	}
+	job := sche.Every(50 * time.Millisecond).Do(f)
+	time.Sleep(102 * time.Millisecond)
+	err := sche.Cancel(job)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+
 func TestDelayJob_Cancel(t *testing.T) {
 	delays := []string{}
 	sche := NewSchedule()
@@ -55,19 +90,20 @@ func TestDelayJob_Cancel(t *testing.T) {
 	f := func() {
 		lock.Lock()
 		defer lock.Unlock()
-		//time.Sleep(1*time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 		i = i + 1
 	}
 	for i := 0; i < 100; i++ {
 		jobid := sche.Delay(time.Duration(time.Duration(1000+i*10) * time.Millisecond)).Do(f)
 		delays = append(delays, jobid)
 	}
-	time.Sleep(1500 * time.Millisecond)
+	time.Sleep(1503 * time.Millisecond)
 	for _, delay := range delays {
 		err := sche.Cancel(delay)
 		if err != nil {
 			temp++
 		}
+
 	}
 	time.Sleep(1 * time.Second)
 	assert.Equal(t, temp, i)
