@@ -24,7 +24,7 @@ func TestSchedule_Delay(t *testing.T) {
 	}
 
 	for i := 0; i < 100; i++ {
-		sche.Delay(time.Duration(time.Duration(1000+i*10)*time.Millisecond), f).Do()
+		sche.Delay(time.Duration(time.Duration(1000+i*10) * time.Millisecond)).Do(f)
 	}
 	time.Sleep(3 * time.Second)
 	assert.Equal(t, i, 100)
