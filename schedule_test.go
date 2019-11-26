@@ -28,7 +28,11 @@ func TestSchedule_Delay(t *testing.T) {
 		sche.Delay(time.Duration(time.Duration(1000+i*10) * time.Millisecond)).Do(f)
 	}
 	time.Sleep(3 * time.Second)
-	assert.Equal(t, i, 100)
+	{
+		lock.Lock()
+		defer lock.Unlock()
+		assert.Equal(t, 100, i)
+	}
 }
 
 func TestSchedule_Every(t *testing.T) {
@@ -44,7 +48,11 @@ func TestSchedule_Every(t *testing.T) {
 	}
 	sche.Every(100 * time.Millisecond).Do(f)
 	time.Sleep(4550 * time.Millisecond)
-	assert.Equal(t, i, 45)
+	{
+		lock.Lock()
+		defer lock.Unlock()
+		assert.Equal(t, 45, i)
+	}
 }
 
 func TestDelayJob_CancelDoing(t *testing.T) {
@@ -106,7 +114,11 @@ func TestDelayJob_Cancel(t *testing.T) {
 
 	}
 	time.Sleep(1 * time.Second)
-	assert.Equal(t, temp, i)
+	{
+		lock.Lock()
+		defer lock.Unlock()
+		assert.Equal(t, temp, i)
+	}
 }
 
 func TestEveryJob_Cancel(t *testing.T) {
@@ -132,7 +144,11 @@ func TestEveryJob_Cancel(t *testing.T) {
 		}
 	}
 	time.Sleep(1 * time.Second)
-	assert.Equal(t, i, 150)
+	{
+		lock.Lock()
+		defer lock.Unlock()
+		assert.Equal(t, i, 150)
+	}
 }
 
 func TestJob_GetJobStats(t *testing.T) {
@@ -142,7 +158,7 @@ func TestJob_GetJobStats(t *testing.T) {
 	f := func() {
 		lock.Lock()
 		defer lock.Unlock()
-		time.Sleep(1 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		i = i + 1
 	}
 	jobs := []string{}
@@ -153,6 +169,10 @@ func TestJob_GetJobStats(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	temp := 0
 	for _, job := range jobs {
+		sche.Cancel(job)
+	}
+	time.Sleep(30 * time.Millisecond)
+	for _, job := range jobs {
 		result, err := sche.Query(job)
 		if err != nil {
 			log.Fatal(err)
@@ -160,5 +180,9 @@ func TestJob_GetJobStats(t *testing.T) {
 			temp += result.finishedTime
 		}
 	}
-	assert.Equal(t, temp, i)
+	{
+		lock.Lock()
+		defer lock.Unlock()
+		assert.Equal(t, temp, i)
+	}
 }

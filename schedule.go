@@ -143,6 +143,17 @@ func (job *Job) getStatus() jobStatus {
 	return job.status
 }
 
+func (job *Job) changeStatus(result, target jobStatus) bool {
+	job.Lock()
+	defer job.Unlock()
+	if job.status == result {
+		job.status = target
+		return true
+	} else {
+		return false
+	}
+}
+
 func (job *Job) GetJobStats() JobStats {
 	job.Lock()
 	defer job.Unlock()
@@ -196,14 +207,11 @@ func (job *DelayJob) Do(f func()) string {
 		job.setStatus(jobPrepare)
 		select {
 		case <-timer.C:
-			if job.getStatus() == jobPrepare {
+			if job.changeStatus(jobPrepare, jobRunning) {
 				go func() {
-					job.setStatus(jobRunning)
 					f()
 					job.finishOneTime()
-					if job.getStatus() == jobRunning {
-						job.setStatus(jobFinish)
-					}
+					job.changeStatus(jobRunning, jobFinish)
 				}()
 			}
 		case <-job.close:
@@ -228,14 +236,11 @@ func (job *EveryJob) Do(f func()) string {
 		for {
 			select {
 			case <-timer.C:
-				if job.getStatus() == jobPrepare {
+				if job.changeStatus(jobPrepare, jobRunning) {
 					go func() {
-						job.setStatus(jobRunning)
 						f()
 						job.finishOneTime()
-						if job.getStatus() == jobRunning {
-							job.setStatus(jobPrepare)
-						}
+						job.changeStatus(jobRunning, jobPrepare)
 					}()
 				}
 			case <-job.close:
