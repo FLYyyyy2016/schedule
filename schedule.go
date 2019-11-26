@@ -211,7 +211,7 @@ func (job *jobBase) getId() string {
 }
 
 func (job *DelayJob) Do(f func()) string {
-	if job.haveRun() {
+	if !job.haveRun() {
 		return job.JobId
 	}
 	timer := time.NewTimer(job.duration)
