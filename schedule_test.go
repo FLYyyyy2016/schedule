@@ -163,8 +163,10 @@ func TestJob_GetJobStats(t *testing.T) {
 	}
 	jobs := []string{}
 	for i := 0; i < 10; i++ {
-		jobs = append(jobs, sche.Every(3*time.Millisecond).Do(f))
-		jobs = append(jobs, sche.Delay(1*time.Millisecond*time.Duration(i)).Do(f))
+		job1 := sche.Every(3 * time.Millisecond).Do(f)
+		jobs = append(jobs, job1)
+		job2 := sche.Delay(1 * time.Millisecond * time.Duration(i)).Do(f)
+		jobs = append(jobs, job2)
 	}
 	time.Sleep(1 * time.Second)
 	temp := 0
@@ -177,12 +179,36 @@ func TestJob_GetJobStats(t *testing.T) {
 		if err != nil {
 			log.Fatal(err)
 		} else {
-			temp += result.finishedTime
+			temp += result.FinishedTime
 		}
 	}
 	{
 		lock.Lock()
 		defer lock.Unlock()
 		assert.Equal(t, temp, i)
+	}
+}
+
+func TestJobReDo(t *testing.T) {
+	sche := NewSchedule()
+	lock := sync.Mutex{}
+	i := 0
+	f := func() {
+		lock.Lock()
+		defer lock.Unlock()
+		time.Sleep(2 * time.Millisecond)
+		i = i + 1
+	}
+	f2 := func() {
+		log.Fatal("error")
+	}
+	task := sche.Every(300 * time.Millisecond)
+	task.Do(f)
+	task.Do(f2)
+	time.Sleep(1 * time.Second)
+	{
+		lock.Lock()
+		defer lock.Unlock()
+		assert.Equal(t, 3, i)
 	}
 }
