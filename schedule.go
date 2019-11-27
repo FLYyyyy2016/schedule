@@ -3,7 +3,6 @@ package schedule
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"log"
 	"sync"
 	"time"
 )
@@ -16,6 +15,8 @@ const (
 	JobCancel
 	JobNotExist
 )
+
+var nextID string
 
 type Schedule struct {
 	tasks map[string]Task
@@ -287,11 +288,10 @@ func (job *EveryJob) Do(f func()) string {
 func nextId() string {
 	m := md5.New()
 	now := time.Now()
-	timeBytes, err := now.MarshalBinary()
-	if err != nil {
-		log.Fatalln(err)
-	}
+	timeBytes, _ := now.MarshalBinary()
+	m.Write([]byte(nextID))
 	m.Write(timeBytes)
 	bs := m.Sum(nil)
-	return hex.EncodeToString(bs)
+	nextID = hex.EncodeToString(bs)
+	return nextID
 }
