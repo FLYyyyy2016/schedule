@@ -67,10 +67,11 @@ func (sche *Schedule) Delay(duration time.Duration) Task {
 	sche.Lock()
 	defer sche.Unlock()
 	newJob := DelayJob{
-		jobBase: jobBase{JobId: nextId(), close: make(chan struct{}), duration: duration},
+		jobBase: *newJobBase(),
 	}
+	newJob.duration = duration
 	newJob.setStatus(JobCreating)
-	sche.tasks[newJob.JobId] = &newJob
+	sche.tasks[newJob.jobId] = &newJob
 	return &newJob
 }
 
@@ -78,10 +79,11 @@ func (sche *Schedule) Every(duration time.Duration) Task {
 	sche.Lock()
 	defer sche.Unlock()
 	newJob := EveryJob{
-		jobBase: jobBase{JobId: nextId(), close: make(chan struct{}), duration: duration},
+		jobBase: *newJobBase(),
 	}
+	newJob.duration = duration
 	newJob.setStatus(JobCreating)
-	sche.tasks[newJob.JobId] = &newJob
+	sche.tasks[newJob.jobId] = &newJob
 	return &newJob
 }
 
@@ -107,7 +109,7 @@ func (sche *Schedule) Cancel(jobId string) error {
 
 type Task interface {
 	Do(func()) string
-	getId() string
+	GetId() string
 	cancel() error
 	getJobStats() JobStats
 }
@@ -122,23 +124,16 @@ type EveryJob struct {
 
 type jobBase struct {
 	sync.Mutex
-	JobId     string
-	status    JobStatus
-	isCreated bool
-	close     chan struct{}
-	duration  time.Duration
-	finish    int
+	jobId    string
+	status   JobStatus
+	close    chan struct{}
+	duration time.Duration
+	finish   int
+	workFunc func()
 }
 
-func (job *jobBase) haveRun() bool {
-	job.Lock()
-	defer job.Unlock()
-	if !job.isCreated {
-		job.isCreated = true
-		return true
-	} else {
-		return false
-	}
+func newJobBase() *jobBase {
+	return &jobBase{jobId: nextId(), close: make(chan struct{}, 1)}
 }
 
 func (job *jobBase) setStatus(status JobStatus) {
@@ -176,7 +171,7 @@ func (job *DelayJob) cancel() error {
 	status := job.getStatus()
 	switch status {
 	case JobPrepare:
-		job.close <- struct{}{}
+		job.jobBase.cancel()
 	case JobRunning:
 		return JobIsRunningError{}
 	case JobCancel:
@@ -193,9 +188,9 @@ func (job *EveryJob) cancel() error {
 	status := job.getStatus()
 	switch status {
 	case JobPrepare:
-		job.close <- struct{}{}
+		job.jobBase.cancel()
 	case JobRunning:
-		job.close <- struct{}{}
+		job.jobBase.cancel()
 	case JobCancel:
 		return nil
 	case JobCreating:
@@ -206,13 +201,34 @@ func (job *EveryJob) cancel() error {
 	return nil
 }
 
-func (job *jobBase) getId() string {
-	return job.JobId
+func (job *jobBase) cancel() {
+	job.Lock()
+	defer job.Unlock()
+	if len(job.close) == 1 {
+		return
+	}
+	job.close <- struct{}{}
+}
+
+func (job *jobBase) GetId() string {
+	return job.jobId
+}
+
+// cacFunc will change job.workFunc as f,
+// and return true if origin job.workFunc is nil otherwise false.
+func (job *jobBase) cacFunc(f func()) (isNil bool) {
+	job.Lock()
+	defer job.Unlock()
+	if job.workFunc == nil {
+		isNil = true
+	}
+	job.workFunc = f
+	return
 }
 
 func (job *DelayJob) Do(f func()) string {
-	if !job.haveRun() {
-		return job.JobId
+	if !job.cacFunc(f) {
+		return job.jobId
 	}
 	timer := time.NewTimer(job.duration)
 	go func() {
@@ -221,7 +237,7 @@ func (job *DelayJob) Do(f func()) string {
 		case <-timer.C:
 			if job.changeStatus(JobPrepare, JobRunning) {
 				go func() {
-					f()
+					job.workFunc()
 					job.finishOneTime()
 					job.changeStatus(JobRunning, JobFinish)
 				}()
@@ -232,7 +248,7 @@ func (job *DelayJob) Do(f func()) string {
 			return
 		}
 	}()
-	return job.JobId
+	return job.jobId
 }
 
 func (job *jobBase) finishOneTime() {
@@ -242,8 +258,8 @@ func (job *jobBase) finishOneTime() {
 }
 
 func (job *EveryJob) Do(f func()) string {
-	if !job.haveRun() {
-		return job.JobId
+	if !job.cacFunc(f) {
+		return job.jobId
 	}
 	timer := time.NewTicker(job.duration)
 	go func() {
@@ -253,7 +269,7 @@ func (job *EveryJob) Do(f func()) string {
 			case <-timer.C:
 				if job.changeStatus(JobPrepare, JobRunning) {
 					go func() {
-						f()
+						job.workFunc()
 						job.finishOneTime()
 						job.changeStatus(JobRunning, JobPrepare)
 					}()
@@ -265,7 +281,7 @@ func (job *EveryJob) Do(f func()) string {
 			}
 		}
 	}()
-	return job.JobId
+	return job.jobId
 }
 
 func nextId() string {

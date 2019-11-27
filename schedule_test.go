@@ -25,7 +25,7 @@ func TestSchedule_Delay(t *testing.T) {
 	}
 
 	for i := 0; i < 100; i++ {
-		sche.Delay(time.Duration(time.Duration(1000+i*10) * time.Millisecond)).Do(f)
+		sche.Delay(time.Duration(1000+i*10) * time.Millisecond).Do(f)
 	}
 	time.Sleep(3 * time.Second)
 	{
@@ -62,11 +62,11 @@ func TestDelayJob_CancelDoing(t *testing.T) {
 	f := func() {
 		lock.Lock()
 		defer lock.Unlock()
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 		i = i + 1
 	}
 	job := sche.Delay(100 * time.Millisecond).Do(f)
-	time.Sleep(102 * time.Millisecond)
+	time.Sleep(120 * time.Millisecond)
 	err := sche.Cancel(job)
 	assert.NotEqual(t, err, nil)
 }
@@ -102,10 +102,10 @@ func TestDelayJob_Cancel(t *testing.T) {
 		i = i + 1
 	}
 	for i := 0; i < 100; i++ {
-		jobid := sche.Delay(time.Duration(time.Duration(1000+i*10) * time.Millisecond)).Do(f)
+		jobid := sche.Delay(time.Duration(1000+i*10) * time.Millisecond).Do(f)
 		delays = append(delays, jobid)
 	}
-	time.Sleep(1503 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 	for _, delay := range delays {
 		err := sche.Cancel(delay)
 		if err != nil {
@@ -197,10 +197,10 @@ func TestJobReDo(t *testing.T) {
 		lock.Lock()
 		defer lock.Unlock()
 		time.Sleep(2 * time.Millisecond)
+		log.Fatal("error")
 		i = i + 1
 	}
 	f2 := func() {
-		log.Fatal("error")
 	}
 	task := sche.Every(300 * time.Millisecond)
 	task.Do(f)
@@ -209,6 +209,6 @@ func TestJobReDo(t *testing.T) {
 	{
 		lock.Lock()
 		defer lock.Unlock()
-		assert.Equal(t, 3, i)
+		assert.NotEqual(t, 3, i)
 	}
 }
