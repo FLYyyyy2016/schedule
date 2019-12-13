@@ -3,6 +3,7 @@ package schedule
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -16,6 +17,8 @@ const (
 	JobNotExist
 )
 
+var jobStatusString = []string{"JobPrepare", "JobRunning", "JobFinish", "JobCreating", "JobCancel", "JobNotExist"}
+
 var nextID string
 
 type Schedule struct {
@@ -28,7 +31,15 @@ type JobStats struct {
 	FinishedTime int
 }
 
+func (JobStats JobStats) String() string {
+	return fmt.Sprintf("job status: %s ; job finished times: %d", JobStats.JobStatus, JobStats.FinishedTime)
+}
+
 type JobStatus uint
+
+func (jobStatus JobStatus) String() string {
+	return jobStatusString[jobStatus]
+}
 
 type JobIsRunningError struct{}
 
