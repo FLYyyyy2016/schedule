@@ -216,9 +216,6 @@ func (job *EveryJob) cancel() error {
 func (job *jobBase) cancel() {
 	job.Lock()
 	defer job.Unlock()
-	if len(job.close) == 1 {
-		return
-	}
 	job.close <- struct{}{}
 }
 
