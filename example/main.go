@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/FLYyyyy2016/schedule"
 	"time"
+
+	"github.com/FLYyyyy2016/schedule"
 )
 
 func main() {
@@ -18,9 +19,9 @@ func main() {
 		fmt.Println("this msg will not print")
 	})
 	time.Sleep(2500 * time.Millisecond)
-	sche.Cancel(a)
-	sche.Cancel(b)
-	sche.Cancel(c)
+	_ = sche.Cancel(a)
+	_ = sche.Cancel(b)
+	_ = sche.Cancel(c)
 	time.Sleep(1 * time.Second)
 
 	status, _ := sche.Query(a)

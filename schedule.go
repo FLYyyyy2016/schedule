@@ -14,7 +14,7 @@ const (
 	JobFinish
 	JobCreating
 	JobCancel
-	JobNotExist
+	//JobNotExist
 )
 
 var jobStatusString = []string{"JobPrepare", "JobRunning", "JobFinish", "JobCreating", "JobCancel", "JobNotExist"}
@@ -297,8 +297,8 @@ func nextId() string {
 	m := md5.New()
 	now := time.Now()
 	timeBytes, _ := now.MarshalBinary()
-	m.Write([]byte(nextID))
-	m.Write(timeBytes)
+	_, _ = m.Write([]byte(nextID))
+	_, _ = m.Write(timeBytes)
 	bs := m.Sum(nil)
 	nextID = hex.EncodeToString(bs)
 	return nextID

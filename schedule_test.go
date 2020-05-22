@@ -1,11 +1,12 @@
 package schedule
 
 import (
-	"github.com/go-playground/assert/v2"
 	"log"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/go-playground/assert/v2"
 )
 
 func TestSchedule(t *testing.T) {
@@ -171,7 +172,7 @@ func TestJob_GetJobStats(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	temp := 0
 	for _, job := range jobs {
-		sche.Cancel(job)
+		_ = sche.Cancel(job)
 	}
 	time.Sleep(30 * time.Millisecond)
 	for _, job := range jobs {
@@ -198,7 +199,6 @@ func TestJobReDo(t *testing.T) {
 		defer lock.Unlock()
 		time.Sleep(2 * time.Millisecond)
 		log.Fatal("error")
-		i = i + 1
 	}
 	f2 := func() {
 	}
